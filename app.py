@@ -1,14 +1,16 @@
 import os
-from datetime import datetime
-from flask import Flask, g, render_template, request, redirect, url_for, flash, session, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
 import secrets
 import sqlite3
+from datetime import datetime
+from functools import wraps
+from flask import Flask, g, render_template, request, redirect, url_for, flash, session, jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Config
+# ----------------------------
+# Configuration (variables d'env avec valeurs par défaut)
+# ----------------------------
 DATABASE = os.getenv("DATABASE", "moneytoflows.db")
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "herolemiayoukou@gmail.com")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "herolemiaykou@gmail.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ChangeMe123!")
 SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "Moneytoflows@gmail.com")
 ACHAT_LINK = os.getenv("ACHAT_LINK", "https://sgzxfbtn.mychariow.shop/prd_8ind83")
@@ -18,9 +20,13 @@ REWARD_PER_REF = float(os.getenv("REWARD_PER_REF", "1700.0"))
 WU_MIN = int(os.getenv("WU_MIN", "15000"))
 MOBILE_MIN = int(os.getenv("MOBILE_MIN", "5000"))
 
+# Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
 
+# ----------------------------
+# Database helpers (SQLite)
+# ----------------------------
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -97,16 +103,18 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-def generate_ref_code(user_id: int):
-    import secrets
-    return f"U{user_id:06d}{secrets.token_hex(2)}"
-
 def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
+def generate_ref_code(user_id: int):
+    return f"U{user_id:06d}{secrets.token_hex(2)}"
+
+# ----------------------------
+# Auth decorators
+# ----------------------------
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -124,6 +132,9 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+# ----------------------------
+# Commission logic
+# ----------------------------
 def commission_rate(buyers_count:int):
     if buyers_count >= 100:
         return 0.40
@@ -131,6 +142,9 @@ def commission_rate(buyers_count:int):
         return 0.30
     return 0.20
 
+# ----------------------------
+# Routes: public
+# ----------------------------
 @app.route('/')
 def index():
     return render_template('index.html', product=PRODUCT_NAME, achat_link=ACHAT_LINK, support_email=SUPPORT_EMAIL)
@@ -161,8 +175,8 @@ def register():
                 db.commit()
             flash('Inscription réussie, connectez-vous', 'success')
             return redirect(url_for('login'))
-        except Exception as e:
-            flash('Erreur lors de l\'inscription (email ou username déjà utilisé)', 'danger')
+        except Exception:
+            flash("Erreur lors de l'inscription (email ou username déjà utilisé)", 'danger')
     return render_template('register.html', ref=ref)
 
 @app.route('/login', methods=['GET','POST'])
@@ -185,6 +199,9 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+# ----------------------------
+# Routes: user dashboard & actions
+# ----------------------------
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -202,6 +219,7 @@ def dashboard():
     return render_template('dashboard.html', user=user, total_referrals=total_referrals, buyers=buyers, amount=amount, ref_link=ref_link, threshold=SEUIL_RECOMPENSE, rate=rate)
 
 @app.route('/confirm_purchase', methods=['GET','POST'])
+@login_required
 def confirm_purchase():
     if request.method == 'POST':
         reference = request.form['reference'].strip()
@@ -209,11 +227,12 @@ def confirm_purchase():
         db = get_db()
         db.execute('INSERT INTO purchases (user_id, reference, validated, created_at) VALUES (?, ?, 0, ?)', (uid, reference, 0, datetime.utcnow().isoformat()))
         db.commit()
-        flash('Référence envoyée à l\'admin pour validation', 'info')
+        flash("Référence envoyée à l'admin pour validation", 'info')
         return redirect(url_for('dashboard'))
     return render_template('confirm_purchase.html')
 
 @app.route('/withdraw', methods=['GET','POST'])
+@login_required
 def withdraw():
     uid = session['user_id']
     user = query_db('SELECT * FROM users WHERE id=?', (uid,), one=True)
@@ -231,30 +250,33 @@ def withdraw():
         mobile = request.form.get('mobile','').strip()
         wu_name = request.form.get('wu_name','').strip()
         wu_country = request.form.get('wu_country','').strip()
+        db = get_db()
         if provider == 'Western Union':
             if not wu_name or not wu_country or len(mobile) < 6:
                 flash('Veuillez fournir toutes les informations requises pour Western Union', 'danger')
                 return redirect(url_for('withdraw'))
-            db = get_db()
             db.execute('INSERT INTO withdrawals (user_id, provider, mobile_number, wu_fullname, wu_country, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (uid, provider, mobile, wu_name, wu_country, 'pending', datetime.utcnow().isoformat()))
             db.commit()
-            flash('Demande de retrait WU envoyée à l\'admin', 'success')
+            flash("Demande de retrait WU envoyée à l'admin", 'success')
             return redirect(url_for('dashboard'))
         else:
             if len(mobile) < 6:
                 flash('Numéro mobile invalide', 'danger')
                 return redirect(url_for('withdraw'))
-            db = get_db()
             db.execute('INSERT INTO withdrawals (user_id, provider, mobile_number, status, created_at) VALUES (?, ?, ?, ?, ?)',
                        (uid, provider, mobile, 'pending', datetime.utcnow().isoformat()))
             db.commit()
-            flash('Demande de retrait envoyée à l\'admin', 'success')
+            flash("Demande de retrait envoyée à l'admin", 'success')
             return redirect(url_for('dashboard'))
     return render_template('withdraw.html', buyers=buyers, providers=providers, mobile_min=MOBILE_MIN, wu_min=WU_MIN)
 
+# ----------------------------
+# Admin panel & actions
+# ----------------------------
 @app.route('/admin')
 @login_required
+@admin_required
 def admin_panel():
     users = query_db('SELECT * FROM users ORDER BY created_at DESC')
     pending = query_db('SELECT p.id, p.user_id, p.reference, p.validated, p.created_at, u.username FROM purchases p JOIN users u ON p.user_id=u.id WHERE p.validated=0')
@@ -263,6 +285,8 @@ def admin_panel():
     return render_template('admin.html', users=users, pending=pending, withdrawals=withdrawals, tickets=tickets, support_email=SUPPORT_EMAIL)
 
 @app.route('/admin/validate_purchase/<int:pid>', methods=['POST'])
+@login_required
+@admin_required
 def validate_purchase(pid):
     db = get_db()
     db.execute('UPDATE purchases SET validated=1 WHERE id=?', (pid,))
@@ -273,6 +297,8 @@ def validate_purchase(pid):
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/validate_withdraw/<int:wid>', methods=['POST'])
+@login_required
+@admin_required
 def validate_withdraw(wid):
     db = get_db()
     db.execute('UPDATE withdrawals SET status="validated" WHERE id=?', (wid,))
@@ -281,6 +307,8 @@ def validate_withdraw(wid):
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/refuse_withdraw/<int:wid>', methods=['POST'])
+@login_required
+@admin_required
 def refuse_withdraw(wid):
     db = get_db()
     db.execute('UPDATE withdrawals SET status="refused" WHERE id=?', (wid,))
@@ -288,6 +316,9 @@ def refuse_withdraw(wid):
     flash('Retrait refusé', 'info')
     return redirect(url_for('admin_panel'))
 
+# ----------------------------
+# Support
+# ----------------------------
 @app.route('/support', methods=['GET','POST'])
 def support():
     if request.method == 'POST':
@@ -302,12 +333,53 @@ def support():
         return redirect(url_for('index'))
     return render_template('support.html', support_email=SUPPORT_EMAIL)
 
+# ----------------------------
+# Utility routes
+# ----------------------------
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"}), 200
+
 @app.route('/init')
 def init_route():
     init_db()
     return 'Database initialized and admin created (if not existed).'
 
-if __name__ == '__main__':
+# ----------------------------
+# Start app - robust port handling
+# ----------------------------
+def run_with_fallback():
+    """
+    Essaie d'écouter sur, dans l'ordre :
+    1) PORT (env variable fournie par la plateforme)
+    2) 3000
+    3) 8080
+    Ceci permet de survivre si Deployra force un autre port.
+    """
+    # list of ports to try (env PORT first)
+    ports_to_try = []
+    env_port = os.environ.get("PORT")
+    if env_port:
+        try:
+            ports_to_try.append(int(env_port))
+        except Exception:
+            pass
+    # add common defaults (3000 + 8080)
+    ports_to_try.extend([3000, 8080])
+
+    for p in ports_to_try:
+        try:
+            print(f"Attempting to start on port {p} ...")
+            # use gunicorn in production, but when running python app.py directly, this will run Flask dev server
+            app.run(host="0.0.0.0", port=p)
+            return
+        except OSError as e:
+            print(f"Port {p} not available ({e}), trying next...")
+            continue
+    # if none worked, raise an error to show logs
+    raise RuntimeError("Could not bind to any port (tried PORT env, 3000, 8080)")
+
+if __name__ == "__main__":
+    # initialize DB if needed
     init_db()
-    port = int(os.environ.get("PORT", 3000))
-    app.run(host="0.0.0.0", port=port)
+    run_with_fallback()

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Inscription</h2>
+<form method="post">
+  <input type="hidden" name="referrer_code" value="{{ ref or '' }}">
+  <div class="mb-3"><input class="form-control" name="username" placeholder="Nom d'utilisateur" required></div>
+  <div class="mb-3"><input class="form-control" name="email" placeholder="Email" type="email" required></div>
+  <div class="mb-3"><input class="form-control" name="password" placeholder="Mot de passe" type="password" required></div>
+  <div class="mb-3"><input class="form-control" name="country" placeholder="Pays (ex: Congo)"></div>
+  <div class="mb-3"><input class="form-control" name="mobile" placeholder="Numéro mobile (ex: +2426...)"></div>
+  <div class="mb-3">
+    <select class="form-control" name="provider">
+      <option>MTN MoMo</option>
+      <option>Airtel Money</option>
+      <option>Orange Money</option>
+      <option>Moov Money</option>
+      <option>Wave</option>
+    </select>
+  </div>
+  <button class="btn btn-gold">S'inscrire</button>
+</form>
+{% endblock %}

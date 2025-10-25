@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Mon tableau de bord</h2>
+<p>Bonjour <strong>{{ user['username'] }}</strong></p>
+<ul>
+  <li>Filleuls inscrits : {{ total_referrals }}</li>
+  <li>Filleuls acheteurs : {{ buyers }}</li>
+  <li>Commission actuelle : {{ (rate*100)|int }}%</li>
+  <li>Montant potentiel : {{ amount }} FCFA</li>
+</ul>
+<p>Lien de parrainage :</p>
+<input class="form-control" readonly value="{{ ref_link }}">
+<p class="mt-3">
+  <a class="btn btn-outline-dark" href="{{ url_for('confirm_purchase') }}">Confirmer un achat</a>
+  <a class="btn btn-gold" href="{{ url_for('withdraw') }}">Demander un retrait</a>
+</p>
+{% endblock %}

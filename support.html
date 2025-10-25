@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Support</h3>
+<p>Contactez-nous : <strong>{{ support_email }}</strong></p>
+<form method="post">
+  <div class="mb-3"><input class="form-control" name="email" placeholder="Votre email (optionnel)"></div>
+  <div class="mb-3"><input class="form-control" name="subject" placeholder="Sujet" required></div>
+  <div class="mb-3"><textarea class="form-control" name="message" placeholder="Message" required></textarea></div>
+  <button class="btn btn-gold">Envoyer</button>
+</form>
+{% endblock %}

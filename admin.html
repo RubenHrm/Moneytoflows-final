@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Admin - Gestion</h3>
+<h4>Utilisateurs</h4>
+<table class="table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Ref Code</th><th>Purchases</th></tr></thead><tbody>
+{% for u in users %}
+  <tr><td>{{ u['id'] }}</td><td>{{ u['username'] }}</td><td>{{ u['email'] }}</td><td>{{ u['ref_code'] }}</td><td>{{ u['purchases'] }}</td></tr>
+{% endfor %}
+</tbody></table>
+<h4>Achats en attente</h4>
+<table class="table"><thead><tr><th>ID</th><th>User</th><th>Reference</th><th>Action</th></tr></thead><tbody>
+{% for p in pending %}
+  <tr><td>{{ p['id'] }}</td><td>{{ p['username'] }}</td><td>{{ p['reference'] }}</td>
+    <td><form method="post" action="{{ url_for('validate_purchase', pid=p['id']) }}"><button class="btn btn-success btn-sm">Valider</button></form></td></tr>
+{% endfor %}
+</tbody></table>
+<h4>Retraits</h4>
+<table class="table"><thead><tr><th>ID</th><th>User</th><th>Provider</th><th>Mobile/WU</th><th>Action</th></tr></thead><tbody>
+{% for w in withdrawals %}
+  <tr><td>{{ w['id'] }}</td><td>{{ w['username'] }}</td><td>{{ w['provider'] }}</td><td>{{ w['mobile_number'] }} {% if w['wu_fullname'] %} / WU: {{ w['wu_fullname'] }} ({{ w['wu_country'] }}){% endif %}</td>
+    <td>
+      <form method="post" action="{{ url_for('validate_withdraw', wid=w['id']) }}" style="display:inline"><button class="btn btn-success btn-sm">Valider</button></form>
+      <form method="post" action="{{ url_for('refuse_withdraw', wid=w['id']) }}" style="display:inline"><button class="btn btn-danger btn-sm">Refuser</button></form>
+    </td></tr>
+{% endfor %}
+</tbody></table>
+<h4>Support Tickets</h4>
+<table class="table"><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Subject</th><th>Message</th><th>Status</th></tr></thead><tbody>
+{% for t in tickets %}
+  <tr><td>{{ t['id'] }}</td><td>{{ t['username'] or 'guest' }}</td><td>{{ t['email'] }}</td><td>{{ t['subject'] }}</td><td>{{ t['message'] }}</td><td>{{ t['status'] }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

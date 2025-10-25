@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+  <h1 class="display-5 text-gold">Bienvenue sur Moneytoflows</h1>
+  <p class="lead">Découvrez comment gagner de l'argent en partageant notre ebook en touchant 20% de commission soit 1,7$ par filleul parrainé.</p>
+  <p>Commencez dès maintenant !</p>
+  <a class="btn btn-gold btn-lg" href="{{ url_for('register') }}">S'inscrire</a>
+  <a class="btn btn-outline-dark btn-lg" href="{{ achat_link }}">Acheter maintenant</a>
+</div>
+{% endblock %}
